@@ -1,62 +1,72 @@
-# TinyRead Chrome Extension
+# TinyRead
 
-Instant, reusable AI summaries for any article. Press Cmd+E to get started.
+Stop wasting energy on duplicate AI summaries. Share canonical summaries that everyone can reuse.
 
-## Features
+## What's This?
 
-- **Instant Summaries**: Get AI-powered summaries in 3 levels (short, medium, detailed)
-- **Reusable Content**: View cached summaries instantly if someone has already summarized the article
-- **Simple UX**: Press Cmd+E on any article page to open the summary overlay
-- **Share Links**: Copy shareable links to summaries
-- **Usage Stats**: Track your time saved and reuse rate
+TinyRead creates **canonical summaries** that get reused instead of regenerated. When you press `Cmd+Shift+S` on any article:
 
-## Installation
+- **If someone already summarized it:** Instant reuse ♻️
+- **If it's new:** Generate once, share forever 🆕
+- **Environmental impact:** Track CO₂ savings from reuse
 
-1. Clone this repository
-2. Open Chrome and go to `chrome://extensions/`
-3. Enable "Developer mode" in the top right
-4. Click "Load unpacked" and select this directory
-5. The extension should now appear in your browser
+## Why This Matters
 
-## Usage
+In 6-12 months, every browser will have built-in AI. The value isn't summarization - it's the canonical reuse layer that prevents redundant computation.
 
-1. Navigate to any article page
-2. Press `Cmd+E` (or `Ctrl+E` on Windows/Linux)
-3. Wait for the summary to generate (or see cached version instantly)
-4. Switch between Short/Medium/Detailed views
-5. Copy shareable links to send to others
+## Project Structure
 
-## Development
+```
+├── Extension/          Chrome extension files
+│   ├── manifest.json   Extension config
+│   ├── content.js      Cmd+Shift+S overlay
+│   ├── overlay.css     UI styling
+│   └── popup.html      Extension popup
+└── api/               Backend API
+    ├── server.js       Express server
+    ├── gemini.js       Gemini AI integration
+    ├── database.js     SQLite storage
+    └── vercel.json     Deployment config
+```
 
-The extension consists of:
+## Quick Start
 
-- `manifest.json` - Extension configuration
-- `content.js` - Handles the overlay and keyboard shortcuts
-- `overlay.css` - Styles for the summary overlay
-- `background.js` - Service worker for API communication
-- `popup.html/js` - Extension popup with stats
+### 1. Install Extension (Local Testing)
+1. Open Chrome → `chrome://extensions/`
+2. Enable "Developer mode"
+3. Click "Load unpacked" → Select this directory
+4. Press `Cmd+Shift+S` on any article!
 
-### API Integration
+### 2. Run API Locally
+```bash
+cd api
+npm install
+npm start
+# API runs on http://localhost:3000
+```
 
-The extension is currently using mock data. To integrate with a real API:
+### 3. Deploy API to Vercel
+- Connect this GitHub repo to Vercel
+- Set root directory to `api/`
+- Add environment variable: `GEMINI_API_KEY`
+- Deploy!
 
-1. Replace the API URL in `content.js` and `background.js`
-2. Implement the backend API following the expected request/response format
-3. Update CORS settings to allow the extension origin
+## Testing the Hypothesis
 
-## Roadmap
+**Key Metric:** Reuse rate >30% validates the concept
+- Track in popup: summaries generated vs reused
+- Environmental impact: CO₂ saved from reuse
+- Network effects: More summaries = more value
 
-- [ ] Backend API implementation
-- [ ] User authentication
-- [ ] Summary quality ratings
-- [ ] Custom prompt templates
-- [ ] Export to PDF/Markdown
-- [ ] Team sharing features
+## Tech Stack
 
-## Contributing
+- **Extension:** Vanilla JS (fast, simple)
+- **Backend:** Node.js + Express + SQLite
+- **AI:** Google Gemini (fast + cheap)
+- **Deploy:** Vercel
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test with the extension loaded in development mode
-5. Submit a pull request
+## Future Vision
+
+When browsers commoditize AI summarization, TinyRead becomes the canonical knowledge layer everyone shares. The moat isn't the AI - it's the network effect of reusable summaries.
+
+**Move fast. Break things. Test the reuse hypothesis.** 🚀

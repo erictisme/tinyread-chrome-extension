@@ -3,6 +3,7 @@
 
 let overlayVisible = false;
 let overlay = null;
+let floatingWidget = null;
 
 // Create overlay element
 function createOverlay() {
@@ -77,9 +78,11 @@ function getCanonicalUrl() {
 
 // Generate summary using API
 async function generateSummary(content, level = 'short') {
-  const apiUrl = process.env.NODE_ENV === 'development' 
-    ? 'http://localhost:3000/api/summary'
-    : 'https://tinyread-api.vercel.app/api/summary';
+  // Try production first, fallback to local
+  const apiUrls = [
+    'https://tinyread-chrome-extension-git-main-erictansongyi-gmailcoms-projects.vercel.app/api/summary',
+    'http://localhost:3000/api/summary'
+  ];
   
   const prompts = {
     short: "Summarize this article in 1-2 sentences. Include at least one specific number, date, or statistic.",
@@ -87,39 +90,48 @@ async function generateSummary(content, level = 'short') {
     detailed: "Create a comprehensive bullet-point summary. Include all numbers, dates, statistics, names, and key facts mentioned."
   };
   
-  try {
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        url: getCanonicalUrl(),
-        content: content,
-        level: level,
-        prompt: prompts[level]
-      })
-    });
-    
-    if (!response.ok) {
-      throw new Error('API request failed');
+  for (const apiUrl of apiUrls) {
+    try {
+      console.log(`Trying API: ${apiUrl}`);
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url: getCanonicalUrl(),
+          content: content,
+          level: level,
+          prompt: prompts[level]
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('API Success:', result);
+      return result;
+      
+    } catch (error) {
+      console.warn(`API ${apiUrl} failed:`, error);
+      if (apiUrl === apiUrls[apiUrls.length - 1]) {
+        // Last URL failed, throw error
+        console.error('All APIs failed:', error);
+        // Return mock data if all APIs fail
+        return {
+          summary: {
+            short: "API currently unavailable. Summary will be generated shortly.",
+            medium: "The TinyRead API is temporarily unavailable, but your request has been logged. Please try again in a few moments for the full summary.", 
+            detailed: "• API connection failed - this is likely temporary\n• Your article URL has been cached for retry\n• Summary generation typically takes 10-15 seconds\n• Please refresh or try again shortly\n• Check tinyread.ai for service status updates"
+          },
+          reuse_count: 1,
+          is_cached: false,
+          environmental_impact: { co2_saved_grams: 0, equivalent_searches: 0 }
+        };
+      }
     }
-    
-    return await response.json();
-  } catch (error) {
-    console.error('Error generating summary:', error);
-    // Return mock data for development
-    // Fallback mock data if API fails
-    return {
-      summary: {
-        short: "API currently unavailable. Summary will be generated shortly.",
-        medium: "The TinyRead API is temporarily unavailable, but your request has been logged. Please try again in a few moments for the full summary.",
-        detailed: "• API connection failed - this is likely temporary\n• Your article URL has been cached for retry\n• Summary generation typically takes 10-15 seconds\n• Please refresh or try again shortly\n• Check tinyread.ai for service status updates"
-      },
-      reuse_count: 1,
-      is_cached: false,
-      environmental_impact: { co2_saved_grams: 0, equivalent_searches: 0 }
-    };
   }
 }
 
@@ -146,6 +158,9 @@ async function showOverlay() {
   
   // Get article content and generate summary
   const content = getArticleContent();
+  console.log('Extracted content length:', content.length);
+  console.log('Content preview:', content.substring(0, 200) + '...');
+  
   const summaryData = await generateSummary(content, 'short');
   
   // Hide loading, show summary
@@ -160,28 +175,44 @@ async function showOverlay() {
   updateReuseCounter(summaryData.reuse_count, summaryData.is_cached, summaryData.environmental_impact);
 }
 
-// Update summary display for different levels
+// Update summary display for different levels  
 function updateSummaryDisplay(level) {
   if (!overlay || !overlay.summaryData) return;
   
   const summaryText = overlay.querySelector('#summary-text');
-  summaryText.textContent = overlay.summaryData.summary[level];
+  let content = overlay.summaryData.summary[level];
+  
+  // Convert markdown to HTML
+  content = content
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')  // **bold**
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')              // *italic*
+    .replace(/^• (.*$)/gim, '<li>$1</li>')             // • bullets
+    .replace(/^# (.*$)/gim, '<h3>$1</h3>')             // # headers
+    .replace(/\n/g, '<br>');                           // line breaks
+    
+  // Wrap bullets in ul
+  if (content.includes('<li>')) {
+    content = content.replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>');
+  }
+  
+  summaryText.innerHTML = content;
 }
 
 // Update reuse counter with environmental impact
 function updateReuseCounter(count, isCached, environmentalImpact) {
   const counter = overlay.querySelector('#reuse-counter');
   const status = isCached ? '♻️ Reused' : '🆕 New';
-  const co2Text = environmentalImpact?.co2_saved_grams > 0 
-    ? ` • ${environmentalImpact.co2_saved_grams}g CO₂ saved`
-    : '';
-  counter.innerHTML = `${status} • ${count} views${co2Text}`;
+  const waterBottles = environmentalImpact?.co2_saved_grams > 0 
+    ? Math.floor(environmentalImpact.co2_saved_grams / 25) // ~25g CO2 per water bottle
+    : 0;
+  const waterText = waterBottles > 0 ? ` • ${waterBottles} water bottles saved` : '';
+  counter.innerHTML = `${status} • ${count} views${waterText}`;
 }
 
 // Copy share link
 function copyShareLink() {
   const url = getCanonicalUrl();
-  const shareUrl = `https://tinyread.ai/s/${btoa(url).replace(/[+/=]/g, '')}`;
+  const shareUrl = overlay.summaryData?.share_url || `${url}#tinyread`;
   
   navigator.clipboard.writeText(shareUrl).then(() => {
     const btn = overlay.querySelector('.copy-link-btn');
@@ -215,6 +246,70 @@ document.addEventListener('keydown', (e) => {
     hideOverlay();
   }
 });
+
+// Create floating widget
+function createFloatingWidget() {
+  if (floatingWidget) return floatingWidget;
+  
+  const widget = document.createElement('div');
+  widget.id = 'tinyread-widget';
+  widget.innerHTML = `
+    <div class="widget-content">
+      <div class="widget-logo">📚</div>
+      <button class="widget-summarize" title="Summarize this page">Summarize</button>
+      <button class="widget-close" title="Hide TinyRead">✕</button>
+    </div>
+  `;
+  
+  document.body.appendChild(widget);
+  
+  // Add event listeners
+  widget.querySelector('.widget-summarize').addEventListener('click', showOverlay);
+  widget.querySelector('.widget-close').addEventListener('click', hideFloatingWidget);
+  
+  floatingWidget = widget;
+  return widget;
+}
+
+// Hide floating widget
+function hideFloatingWidget() {
+  if (floatingWidget) {
+    floatingWidget.style.display = 'none';
+  }
+}
+
+// Show floating widget
+function showFloatingWidget() {
+  if (!floatingWidget) {
+    createFloatingWidget();
+  }
+  floatingWidget.style.display = 'flex';
+}
+
+// Initialize floating widget on page load - show on all pages for now
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    showFloatingWidget();
+  }, 2000); // Show after 2 seconds to be less intrusive
+});
+
+// Check if current page looks like an article  
+function isArticlePage() {
+  // Much more permissive - show widget on most content pages
+  const hasArticleTag = !!document.querySelector('article');
+  const hasLongContent = document.body.innerText.length > 500; // Lower threshold
+  const notHomepage = !window.location.pathname.match(/^\/(index|home)?\.?[a-z]*\/?$/i);
+  const hasContentIndicators = !!(
+    document.querySelector('h1, h2, .title, .headline, [class*="content"], [class*="post"]') ||
+    document.querySelector('p')?.innerText?.length > 100
+  );
+  
+  // Show on most pages except clear non-content pages
+  const excludePages = /\/(search|login|register|checkout|cart|account|settings|admin)/i;
+  const shouldExclude = excludePages.test(window.location.pathname);
+  
+  return !shouldExclude && (hasArticleTag || hasLongContent || (notHomepage && hasContentIndicators));
+}
 
 // Click outside overlay to close
 document.addEventListener('click', (e) => {

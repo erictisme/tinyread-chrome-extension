@@ -91,6 +91,31 @@
     .link:hover {
       text-decoration: underline;
     }
+    
+    .summarize-button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      margin-bottom: 8px;
+      transition: background-color 0.2s;
+    }
+    
+    .summarize-button:hover {
+      background: #1d4ed8;
+    }
+    
+    .shortcut-text {
+      font-size: 11px;
+      color: #666;
+      text-align: center;
+      margin: 0;
+    }
   </style>
 </head>
 <body>
@@ -100,7 +125,8 @@
   </div>
   
   <div class="shortcut">
-    <p class="shortcut-text">Press <span class="kbd">Cmd+Shift+S</span> on any article</p>
+    <button id="summarize-btn" class="summarize-button">Summarize This Page</button>
+    <p class="shortcut-text">or press <span class="kbd">Cmd+Shift+S</span></p>
   </div>
   
   <div class="stats">
@@ -114,7 +140,7 @@
     </div>
     <div class="stat">
       <div class="stat-number" id="time-saved">0s</div>
-      <div class="stat-label">CO₂ Saved</div>
+      <div class="stat-label">Water Bottles</div>
     </div>
   </div>
   

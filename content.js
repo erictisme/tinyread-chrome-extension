@@ -1,5 +1,5 @@
 // TinyRead Content Script
-// Handles Cmd+E overlay and summary display
+// Handles Cmd+Shift+S overlay and canonical summary sharing
 
 let overlayVisible = false;
 let overlay = null;
@@ -17,7 +17,7 @@ function createOverlay() {
       <div class="tinyread-content">
         <div class="tinyread-loading" id="loading">
           <div class="spinner"></div>
-          <p>Generating summary...</p>
+          <p>Checking for existing summary...</p>
         </div>
         <div class="tinyread-summary" id="summary" style="display: none;">
           <div class="summary-tabs">
@@ -77,7 +77,9 @@ function getCanonicalUrl() {
 
 // Generate summary using API
 async function generateSummary(content, level = 'short') {
-  const apiUrl = 'https://your-api-endpoint.com/api/summary'; // TODO: Replace with actual API
+  const apiUrl = process.env.NODE_ENV === 'development' 
+    ? 'http://localhost:3000/api/summary'
+    : 'https://tinyread-api.vercel.app/api/summary';
   
   const prompts = {
     short: "Summarize this article in 1-2 sentences. Include at least one specific number, date, or statistic.",
@@ -107,14 +109,16 @@ async function generateSummary(content, level = 'short') {
   } catch (error) {
     console.error('Error generating summary:', error);
     // Return mock data for development
+    // Fallback mock data if API fails
     return {
       summary: {
-        short: "This is a mock short summary for development purposes.",
-        medium: "This is a mock medium summary that provides more detail than the short version. It includes key points and context about the article content.",
-        detailed: "• This is a mock detailed summary\n• It includes bullet points with specific information\n• Numbers, dates, and statistics would go here\n• Key names and facts are highlighted\n• This format provides comprehensive coverage"
+        short: "API currently unavailable. Summary will be generated shortly.",
+        medium: "The TinyRead API is temporarily unavailable, but your request has been logged. Please try again in a few moments for the full summary.",
+        detailed: "• API connection failed - this is likely temporary\n• Your article URL has been cached for retry\n• Summary generation typically takes 10-15 seconds\n• Please refresh or try again shortly\n• Check tinyread.ai for service status updates"
       },
-      reuse_count: Math.floor(Math.random() * 50) + 1,
-      is_cached: Math.random() > 0.5
+      reuse_count: 1,
+      is_cached: false,
+      environmental_impact: { co2_saved_grams: 0, equivalent_searches: 0 }
     };
   }
 }
@@ -153,7 +157,7 @@ async function showOverlay() {
   
   // Update display
   updateSummaryDisplay('short');
-  updateReuseCounter(summaryData.reuse_count, summaryData.is_cached);
+  updateReuseCounter(summaryData.reuse_count, summaryData.is_cached, summaryData.environmental_impact);
 }
 
 // Update summary display for different levels
@@ -164,11 +168,14 @@ function updateSummaryDisplay(level) {
   summaryText.textContent = overlay.summaryData.summary[level];
 }
 
-// Update reuse counter
-function updateReuseCounter(count, isCached) {
+// Update reuse counter with environmental impact
+function updateReuseCounter(count, isCached, environmentalImpact) {
   const counter = overlay.querySelector('#reuse-counter');
-  const status = isCached ? 'Reused' : 'New';
-  counter.innerHTML = `${status} • Viewed ${count} times`;
+  const status = isCached ? '♻️ Reused' : '🆕 New';
+  const co2Text = environmentalImpact?.co2_saved_grams > 0 
+    ? ` • ${environmentalImpact.co2_saved_grams}g CO₂ saved`
+    : '';
+  counter.innerHTML = `${status} • ${count} views${co2Text}`;
 }
 
 // Copy share link
@@ -197,8 +204,8 @@ function hideOverlay() {
 
 // Keyboard event listener
 document.addEventListener('keydown', (e) => {
-  // Cmd+E or Ctrl+E
-  if ((e.metaKey || e.ctrlKey) && e.key === 'e') {
+  // Cmd+Shift+S or Ctrl+Shift+S
+  if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'S') {
     e.preventDefault();
     showOverlay();
   }

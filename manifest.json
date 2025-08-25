@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "TinyRead",
   "version": "1.0.0",
-  "description": "Get instant, reusable AI summaries of any article. Press Cmd+E to summarize.",
+  "description": "Stop wasting energy on duplicate AI summaries. Share canonical summaries that everyone can reuse.",
   
   "permissions": [
     "activeTab",
@@ -29,7 +29,7 @@
   
   "action": {
     "default_popup": "popup.html",
-    "default_title": "TinyRead - AI Article Summaries"
+    "default_title": "TinyRead - Canonical Article Summaries"
   },
   
   "icons": {

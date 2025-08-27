@@ -42,38 +42,48 @@ function createOverlay() {
   return overlay;
 }
 
-// Extract article content
+// Extract article content with better fallbacks
 function getArticleContent() {
-  // Try multiple selectors to find article content
+  // Wait a moment for dynamic content to load
   const selectors = [
     'article',
     '[role="main"]',
-    '.post-content',
+    '.post-content', 
     '.article-content',
     '.entry-content',
+    '.content-body',
     'main',
-    '.content'
+    '.content',
+    // Spotify-specific
+    '[data-testid="podcast-description"]',
+    '.Type__TypeElement-sc-goli3j-0'
   ];
   
   for (const selector of selectors) {
     const element = document.querySelector(selector);
-    if (element) {
+    if (element && element.innerText.length > 100) {
+      console.log(`✅ Found content using selector: ${selector}`);
       return element.innerText.substring(0, 5000); // Limit to 5000 chars
     }
   }
   
   // Fallback: get text from body, excluding nav/footer
   const body = document.body.cloneNode(true);
-  const unwanted = body.querySelectorAll('nav, footer, header, aside, .sidebar, .comments');
+  const unwanted = body.querySelectorAll('nav, footer, header, aside, .sidebar, .comments, .ads, script, style');
   unwanted.forEach(el => el.remove());
   
+  console.log('⚠️ Using fallback body text extraction');
   return body.innerText.substring(0, 5000);
 }
 
 // Get canonical URL
 function getCanonicalUrl() {
   const canonical = document.querySelector('link[rel="canonical"]');
-  return canonical ? canonical.href : window.location.href.split('#')[0].split('?')[0];
+  const baseUrl = canonical ? canonical.href : window.location.href.split('#')[0].split('?')[0];
+  
+  // For debugging - add timestamp to force cache refresh during development
+  console.log('📍 TinyRead: Current URL:', baseUrl);
+  return baseUrl;
 }
 
 // Generate summary using API
@@ -164,8 +174,15 @@ async function showOverlay() {
   
   // Get article content and generate summary
   const content = getArticleContent();
+  const url = getCanonicalUrl();
   console.log('Extracted content length:', content.length);
   console.log('Content preview:', content.substring(0, 200) + '...');
+  console.log('Article URL:', url);
+  
+  // Check if content seems too generic (might indicate wrong page)
+  if (content.length < 200) {
+    console.warn('⚠️ TinyRead: Content seems very short, might not be an article page');
+  }
   
   const summaryData = await generateSummary(content, 'short');
   
@@ -222,10 +239,8 @@ function copyShareLink() {
   // Get the URL hash from the API response, or generate from the current URL
   let shareUrl;
   if (summaryData.share_url) {
-    // Use API-provided share URL but change domain to localhost
-    const hashMatch = summaryData.share_url.match(/\/s\/(.+)$/);
-    const hash = hashMatch ? hashMatch[1] : 'unknown';
-    shareUrl = `http://localhost:3000/s/${hash}`;
+    // Use API-provided share URL directly (now environment-aware)
+    shareUrl = summaryData.share_url;
   } else {
     // Fallback - use current URL
     shareUrl = getCanonicalUrl();
@@ -334,31 +349,53 @@ function showFloatingWidget() {
   floatingWidget.style.display = 'flex';
 }
 
-// Initialize floating widget on page load - show on all pages for now
+// Initialize floating widget on page load - only on article pages
 window.addEventListener('load', () => {
-  console.log('📄 TinyRead: Page loaded, will show widget in 2s');
-  setTimeout(() => {
-    console.log('⏰ TinyRead: 2 seconds elapsed, showing floating widget');
-    showFloatingWidget();
-  }, 2000); // Show after 2 seconds to be less intrusive
+  console.log('📄 TinyRead: Page loaded, checking if article page');
+  if (isArticlePage()) {
+    console.log('✅ TinyRead: This looks like an article page, will show widget in 2s');
+    setTimeout(() => {
+      console.log('⏰ TinyRead: 2 seconds elapsed, showing floating widget');
+      showFloatingWidget();
+    }, 2000); // Show after 2 seconds to be less intrusive
+  } else {
+    console.log('❌ TinyRead: This doesn\'t look like an article page, not showing widget');
+  }
 });
 
 // Check if current page looks like an article  
 function isArticlePage() {
-  // Much more permissive - show widget on most content pages
+  // Exclude social media feeds and non-article pages
+  const url = window.location.href.toLowerCase();
+  const excludeDomains = [
+    'facebook.com',
+    'twitter.com', 
+    'x.com',
+    'instagram.com',
+    'linkedin.com',
+    'tiktok.com',
+    'youtube.com',
+    'reddit.com',
+    'pinterest.com'
+  ];
+  
+  const excludePages = /\/(search|login|register|checkout|cart|account|settings|admin|feed)/i;
+  
+  // Don't show on social feeds or clearly non-article pages  
+  if (excludeDomains.some(domain => url.includes(domain)) || excludePages.test(window.location.pathname)) {
+    console.log('🚫 TinyRead: Excluding non-article page:', url);
+    return false;
+  }
+  
+  // Show on most other pages
   const hasArticleTag = !!document.querySelector('article');
-  const hasLongContent = document.body.innerText.length > 500; // Lower threshold
-  const notHomepage = !window.location.pathname.match(/^\/(index|home)?\.?[a-z]*\/?$/i);
+  const hasLongContent = document.body.innerText.length > 500;
   const hasContentIndicators = !!(
     document.querySelector('h1, h2, .title, .headline, [class*="content"], [class*="post"]') ||
     document.querySelector('p')?.innerText?.length > 100
   );
   
-  // Show on most pages except clear non-content pages
-  const excludePages = /\/(search|login|register|checkout|cart|account|settings|admin)/i;
-  const shouldExclude = excludePages.test(window.location.pathname);
-  
-  return !shouldExclude && (hasArticleTag || hasLongContent || (notHomepage && hasContentIndicators));
+  return hasArticleTag || hasLongContent || hasContentIndicators;
 }
 
 // Click outside overlay to close

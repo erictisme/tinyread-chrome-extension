@@ -1,8 +1,8 @@
-import fs from "fs";
-import path from "path";
+const fs = require("fs");
+const path = require("path");
 
-export default function handler(req, res) {
+module.exports = (req, res) => {
   const html = fs.readFileSync(path.join(process.cwd(), "public", "summary.html"), "utf8");
   res.setHeader("Content-Type", "text/html");
   res.send(html);
-}
+};

@@ -1,12 +1,12 @@
 // Vercel serverless handler
-import crypto from "crypto";
-import { RateLimiterMemory } from "rate-limiter-flexible";
-import * as db from "../database.js";
-import * as gemini from "../gemini.js";
+const crypto = require("crypto");
+const { RateLimiterMemory } = require("rate-limiter-flexible");
+const db = require("../database.js");
+const gemini = require("../gemini.js");
 
 const limiter = new RateLimiterMemory({ points: 10, duration: 60 });
 
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
   if (req.method !== "POST") return res.status(405).end("Method Not Allowed");
   
   try {
@@ -40,7 +40,7 @@ export default async function handler(req, res) {
     summary = await db.getSummary(urlHash);
   }
 
-  // increment views separately
+  // increment views separately  
   const stats = await db.incrementAndGetViews(urlHash);
 
   // Build a PUBLIC share URL from the incoming request, never hardcode
@@ -60,4 +60,4 @@ export default async function handler(req, res) {
     share_url,
     environmental_impact: { co2_saved_grams: !isNew ? 2.5 : 0, equivalent_searches: Math.floor(stats.view_count / 10) }
   });
-}
+};

@@ -1,16 +1,9 @@
 {
-  "functions": {
-    "api/*.js": {
-      "runtime": "@vercel/node"
-    },
-    "s/[hash].js": {
-      "runtime": "@vercel/node"
-    }
+  "functions": { 
+    "api/*.js": { "runtime": "@vercel/node" }, 
+    "s/[hash].js": { "runtime": "@vercel/node" } 
   },
   "rewrites": [
-    {
-      "source": "/s/(.*)",
-      "destination": "/s/[hash]?hash=$1"
-    }
+    { "source": "/s/:hash", "destination": "/s/[hash]" }
   ]
 }

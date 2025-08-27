@@ -88,11 +88,8 @@ function getCanonicalUrl() {
 
 // Generate summary using API
 async function generateSummary(content, level = 'short') {
-  // Try production first, fallback to local
-  const apiUrls = [
-    'https://tinyread-chrome-extension-o3j4gzj47.vercel.app/api/summary',
-    'http://localhost:3000/api/summary'
-  ];
+  const API_BASE = "https://tinyread-chrome-extension-o3j4gzj47.vercel.app"; // prod first
+  const apiUrls = [`${API_BASE}/api/summary`, "http://localhost:3000/api/summary"]; // keep localhost as last-resort dev fallback
   
   const prompts = {
     short: "Summarize this article in 1-2 sentences. Include at least one specific number, date, or statistic.",
@@ -238,13 +235,8 @@ function copyShareLink() {
   
   // Get the URL hash from the API response, or generate from the current URL
   let shareUrl;
-  if (summaryData.share_url) {
-    // Use API-provided share URL directly (now environment-aware)
-    shareUrl = summaryData.share_url;
-  } else {
-    // Fallback - use current URL
-    shareUrl = getCanonicalUrl();
-  }
+  // when copying
+  const shareUrl = summaryData.share_url; // never synthesize or replace domain
   
   // Create share message with actual summary link
   const shareText = `${summaryData.summary.short}\n\nView full summary: ${shareUrl}\n\n📚 Summarized with TinyRead`;
@@ -351,6 +343,13 @@ function showFloatingWidget() {
 
 // Initialize floating widget on page load - only on article pages
 window.addEventListener('load', () => {
+  // Stop summarizing feeds - hard early return
+  const blocked = ["facebook.com","x.com","twitter.com","instagram.com","linkedin.com","youtube.com","reddit.com","tiktok.com","pinterest.com"];
+  if (blocked.some(d => location.href.includes(d))) {
+    console.log('🚫 TinyRead: Blocked social media site, not showing widget');
+    return; // do not show widget
+  }
+
   console.log('📄 TinyRead: Page loaded, checking if article page');
   if (isArticlePage()) {
     console.log('✅ TinyRead: This looks like an article page, will show widget in 2s');

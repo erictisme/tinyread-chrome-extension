@@ -51,9 +51,9 @@ module.exports = async (req, res) => {
 
   return res.json({
     summary: {
-      short: summary.shortSummary,
-      medium: summary.mediumSummary,
-      detailed: summary.detailedSummary
+      short: summary.short_summary,
+      medium: summary.medium_summary,
+      detailed: summary.detailed_summary
     },
     reuse_count: stats.view_count,
     is_cached: !isNew,

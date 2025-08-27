@@ -90,7 +90,7 @@ function getCanonicalUrl() {
 async function generateSummary(content, level = 'short') {
   // Try production first, fallback to local
   const apiUrls = [
-    'https://tinyread-chrome-extension-git-main-erictansongyi-gmailcoms-projects.vercel.app/api/summary',
+    'https://tinyread-chrome-extension-o3j4gzj47.vercel.app/api/summary',
     'http://localhost:3000/api/summary'
   ];
   

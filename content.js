@@ -29,7 +29,7 @@ function createOverlay() {
           <div class="summary-content">
             <div class="summary-text" id="summary-text"></div>
             <div class="summary-actions">
-              <button class="copy-link-btn">Copy Link</button>
+              <button class="copy-link-btn">📋 Share Summary</button>
               <div class="reuse-counter" id="reuse-counter"></div>
             </div>
           </div>
@@ -92,7 +92,8 @@ async function generateSummary(content, level = 'short') {
   
   for (const apiUrl of apiUrls) {
     try {
-      console.log(`Trying API: ${apiUrl}`);
+      console.log(`🌐 TinyRead: Trying API: ${apiUrl}`);
+      console.log(`📝 TinyRead: Request payload:`, { url: getCanonicalUrl(), contentLength: content.length });
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
@@ -111,7 +112,8 @@ async function generateSummary(content, level = 'short') {
       }
       
       const result = await response.json();
-      console.log('API Success:', result);
+      console.log('✅ TinyRead: API Success:', result);
+      console.log(`📊 TinyRead: Reuse count: ${result.reuse_count}, Cached: ${result.is_cached}`);
       return result;
       
     } catch (error) {
@@ -137,7 +139,11 @@ async function generateSummary(content, level = 'short') {
 
 // Show overlay with summary
 async function showOverlay() {
-  if (overlayVisible) return;
+  console.log('🚀 TinyRead: showOverlay() called');
+  if (overlayVisible) {
+    console.log('⚠️ TinyRead: Overlay already visible, returning');
+    return;
+  }
   
   overlayVisible = true;
   overlay = createOverlay();
@@ -211,15 +217,41 @@ function updateReuseCounter(count, isCached, environmentalImpact) {
 
 // Copy share link
 function copyShareLink() {
-  const url = getCanonicalUrl();
-  const shareUrl = overlay.summaryData?.share_url || `${url}#tinyread`;
+  const summaryData = overlay.summaryData;
   
-  navigator.clipboard.writeText(shareUrl).then(() => {
+  // Get the URL hash from the API response, or generate from the current URL
+  let shareUrl;
+  if (summaryData.share_url) {
+    // Use API-provided share URL but change domain to localhost
+    const hashMatch = summaryData.share_url.match(/\/s\/(.+)$/);
+    const hash = hashMatch ? hashMatch[1] : 'unknown';
+    shareUrl = `http://localhost:3000/s/${hash}`;
+  } else {
+    // Fallback - use current URL
+    shareUrl = getCanonicalUrl();
+  }
+  
+  // Create share message with actual summary link
+  const shareText = `${summaryData.summary.short}\n\nView full summary: ${shareUrl}\n\n📚 Summarized with TinyRead`;
+  
+  console.log('📋 TinyRead: Copying share text:', shareText);
+  console.log('📋 TinyRead: Share URL:', shareUrl);
+  
+  navigator.clipboard.writeText(shareText).then(() => {
     const btn = overlay.querySelector('.copy-link-btn');
     const originalText = btn.textContent;
-    btn.textContent = 'Copied!';
+    btn.textContent = '✅ Copied!';
+    btn.style.background = '#10b981';
     setTimeout(() => {
       btn.textContent = originalText;
+      btn.style.background = '#2563eb';
+    }, 2000);
+  }).catch(err => {
+    console.error('Failed to copy:', err);
+    const btn = overlay.querySelector('.copy-link-btn');
+    btn.textContent = '❌ Failed';
+    setTimeout(() => {
+      btn.textContent = '📋 Share Summary';
     }, 2000);
   });
 }
@@ -264,8 +296,24 @@ function createFloatingWidget() {
   document.body.appendChild(widget);
   
   // Add event listeners
-  widget.querySelector('.widget-summarize').addEventListener('click', showOverlay);
-  widget.querySelector('.widget-close').addEventListener('click', hideFloatingWidget);
+  const summarizeBtn = widget.querySelector('.widget-summarize');
+  const closeBtn = widget.querySelector('.widget-close');
+  
+  console.log('🔧 TinyRead: Adding widget event listeners', { summarizeBtn, closeBtn });
+  
+  summarizeBtn.addEventListener('click', (e) => {
+    console.log('🖱️ TinyRead: Widget summarize button clicked!', e);
+    e.preventDefault();
+    e.stopPropagation();
+    showOverlay();
+  });
+  
+  closeBtn.addEventListener('click', (e) => {
+    console.log('🖱️ TinyRead: Widget close button clicked!', e);
+    e.preventDefault();
+    e.stopPropagation();
+    hideFloatingWidget();
+  });
   
   floatingWidget = widget;
   return widget;
@@ -288,7 +336,9 @@ function showFloatingWidget() {
 
 // Initialize floating widget on page load - show on all pages for now
 window.addEventListener('load', () => {
+  console.log('📄 TinyRead: Page loaded, will show widget in 2s');
   setTimeout(() => {
+    console.log('⏰ TinyRead: 2 seconds elapsed, showing floating widget');
     showFloatingWidget();
   }, 2000); // Show after 2 seconds to be less intrusive
 });
